@@ -11,14 +11,27 @@ interface DependencyNode {
 }
 
 export async function visualizeDependencyTree(
-  packageManager: PackageManager
+  packageManager: PackageManager,
+  maxDepth: number = Infinity
 ): Promise<void> {
   const spinner = createSpinner("Analyzing dependency tree...").start();
 
   try {
     const packageJsonPath = path.join(process.cwd(), "package.json");
     const packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf-8"));
-    const entryFile = packageJson.main || "index.js";
+
+    let entryFile = packageJson.main || packageJson.module || "index.js";
+
+    // Check for TypeScript
+    if (await fileExists(path.join(process.cwd(), "tsconfig.json"))) {
+      entryFile = entryFile.replace(/\.js$/, ".ts");
+    }
+
+    if (!(await fileExists(path.join(process.cwd(), entryFile)))) {
+      throw new Error(
+        `Entry file '${entryFile}' not found. Please check your package.json.`
+      );
+    }
 
     const tree = dependencyTree({
       filename: path.join(process.cwd(), entryFile),
@@ -30,11 +43,13 @@ export async function visualizeDependencyTree(
 
     console.log(chalk.cyan("\nDependency Tree:"));
     const rootName = path.basename(process.cwd());
-    console.log(chalk.white(formatTree(rootName, tree)));
+    console.log(chalk.white(formatTree(rootName, tree, "", 0, maxDepth)));
   } catch (error) {
     spinner.error({ text: "Failed to analyze dependency tree" });
     if (error instanceof Error) {
       console.error(chalk.red(`Error: ${error.message}`));
+    } else {
+      console.error(chalk.red("An unknown error occurred"));
     }
   }
 }
@@ -42,8 +57,14 @@ export async function visualizeDependencyTree(
 function formatTree(
   rootName: string,
   tree: DependencyNode,
-  prefix: string = ""
+  prefix: string = "",
+  currentDepth: number = 0,
+  maxDepth: number = Infinity
 ): string {
+  if (currentDepth > maxDepth) {
+    return `${prefix}${rootName} ...\n`;
+  }
+
   let output = `${prefix}${rootName}\n`;
   const entries = Object.entries(tree);
 
@@ -56,9 +77,24 @@ function formatTree(
     output += newPrefix + packageName + "\n";
 
     if (value !== null && typeof value === "object") {
-      output += formatTree(packageName, value, continuationPrefix);
+      output += formatTree(
+        packageName,
+        value,
+        continuationPrefix,
+        currentDepth + 1,
+        maxDepth
+      );
     }
   });
 
   return output;
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
 }
