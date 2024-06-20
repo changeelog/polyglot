@@ -8,20 +8,29 @@ export async function updateDependencies(
 ): Promise<void> {
   const spinner = createSpinner("Updating dependencies...").start();
   try {
-    if (packageManager === "npm") {
-      await execa("npm", ["update"]);
-    } else if (packageManager === "yarn") {
-      await execa("yarn", ["upgrade"]);
-    } else if (packageManager === "pnpm") {
-      await execa("pnpm", ["update"]);
-    } else if (packageManager === "bun") {
-      await execa("bun", ["update"]);
+    switch (packageManager) {
+      case "npm":
+        await execa("npm", ["update"]);
+        break;
+      case "yarn":
+        await execa("yarn", ["upgrade"]);
+        break;
+      case "pnpm":
+        await execa("pnpm", ["update"]);
+        break;
+      case "bun":
+        await execa("bun", ["update"]);
+        break;
+      default:
+        throw new Error(`Unsupported package manager: ${packageManager}`);
     }
     spinner.success({ text: "Dependencies updated successfully!" });
   } catch (error) {
     spinner.error({ text: "Failed to update dependencies" });
-    if (error instanceof Error) {
-      console.error(chalk.red(error.message));
+    const { message, stderr } = error as { message: string; stderr: string };
+    console.error(chalk.red("Error message:", message));
+    if (stderr) {
+      console.error(chalk.red("Error details:", stderr));
     }
   }
 }
