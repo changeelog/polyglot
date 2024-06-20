@@ -4,6 +4,7 @@ import chalk from "chalk";
 import inquirer from "inquirer";
 
 import { measurePerformance } from "./measurePerformance";
+import { checkLicenseCompliance } from "./checkLicenseCompliance";
 import { detectPackageManager } from "./detectPackageManager";
 import { generateCIConfig } from "./generateCIConfig";
 import { checkVulnerabilities } from "./checkVulnerabilities";
@@ -35,6 +36,7 @@ async function interactiveMode(packageManager: PackageManager): Promise<void> {
       message: "What would you like to do?",
       choices: [
         "Install dependencies",
+        "Check license compliance",
         "Update dependencies",
         "Analyze unused dependencies",
         "Check for vulnerabilities",
@@ -50,6 +52,9 @@ async function interactiveMode(packageManager: PackageManager): Promise<void> {
   switch (action) {
     case "Install dependencies":
       await runCommand(packageManager, "install");
+      break;
+    case "Check license compliance":
+      await checkLicenseCompliance(packageManager);
       break;
     case "Update dependencies":
       await updateDependencies(packageManager);
